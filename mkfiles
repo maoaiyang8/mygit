@@ -1,0 +1,129 @@
+#!/bin/bash
+
+#---------------------------------------------------#
+# usage:  Filesync test, simulating user to perform #
+#         file operation on the client              #
+# author: may                                       #
+# date:   2020-11-22                                #
+#---------------------------------------------------#
+
+if [ $# -ne 1 ]
+then
+    echo "usage: $0 [mkfile_path]"
+    exit
+fi
+
+
+mkfile_path=$1		 # 远程设备目录
+cd $mkfile_path
+if [ $? -eq 0 ]
+then
+	rm -rf ./*               # 初始化环境，强制清空测试目录
+fi
+
+mkdir movedir1
+mkdir movedir2
+mkdir -p ./1/2/3/4/5/6/7/8/9
+
+
+# 创建多种扩展名文件
+for i in `seq 10`
+do 
+	dd if=/dev/urandom of=$i.dat bs=256 count=1 2>/dev/null
+	dd if=/dev/urandom of=$i.tar bs=256 count=1 2>/dev/null
+	dd if=/dev/urandom of=$i.jpg bs=256 count=1 2>/dev/null
+	dd if=/dev/urandom of=$i.png bs=256 count=1 2>/dev/null
+	dd if=/dev/urandom of=$i.txt bs=256 count=1 2>/dev/null
+	dd if=/dev/urandom of=$i.move bs=256 count=1 2>/dev/null
+done
+echo "测试上传文件类型为dat、tar、jpg、png、txt等文件，数量为:60"
+
+# 多目录多个小文件，试行getfile.sh脚本，生成5W
+for i in {1..1000}
+do 
+	dd if=/dev/zero of=$i.file bs=256 count=1 2>/dev/null
+done
+echo "测试上传大量小文件，数量为:1w"
+
+
+
+# 建立大型文件1G
+dd if=/dev/zero of=1G.file bs=1024M count=1 2>/dev/null
+echo "测试上传大于1G文件1个"
+
+
+
+sleep 0.5s
+
+# 移动文件和目录
+mv *.move ./movedir2
+mv movedir2 movedir1
+echo "测试移动文件和目录"
+
+
+
+#重命名目录
+mv ./movedir1/movedir2 ./movedir1/movedir2.rename
+echo "测试重命目录"
+
+
+# 重命名文件
+flist=`ls *.dat`
+for file in $flist
+do
+	mv $file $file.rename
+done
+echo "测试重命文件名"
+
+
+# 超长目录
+## 随机生成255个字符串函数
+randstr() {
+	index=0
+	str=""
+	for i in {a..z}; do arr[index]=$i; index=`expr ${index} + 1`; done
+	for i in {A..Z}; do arr[index]=$i; index=`expr ${index} + 1`; done
+	for i in {0..9}; do arr[index]=$i; index=`expr ${index} + 1`; done
+	for i in {1..255}; do str="$str${arr[$RANDOM%$index]}"; done
+		echo $str
+}
+longfilename=`randstr`
+echo "255长度文件名称测试" > $longfilename
+echo "测试255长度文件名"
+
+
+# 超长目录名称
+longdir=`randstr`
+mkdir $longdir
+echo "测试255长度目录"
+
+# 删除所有txt文件
+if [ -f 1.txt -o -f 9.txt ]
+then
+rm -rf ./*.txt
+fi
+echo "测试删除文件"
+
+
+# 删除多级目录
+rm -rf  ./1
+echo "测试删除多级目录"
+
+
+#计算jpg文件md5sum
+jpgfile=`ls *.jpg`
+md5=`md5sum $jpgfile`
+md5sum $jpgfile >> md5.html
+md5sums=`md5sum md5.html | cut -d ' ' -f1`
+printf "测试每个jpg的MD5值为:\n$md5"
+echo
+echo "---------------------------------------------------"
+echo "所有jpg的MD5值为:$md5sums"
+
+
+# 统计文件总数
+sleep 0.5s
+file_sum=`find ./* -type f | wc -l`
+dir_sum=`find ./* -type d | wc -l`
+echo "发送文件总数为:$file_sum"
+echo "发送目录总数为:$dir_sum"
